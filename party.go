@@ -4,12 +4,14 @@ import (
 	"errors"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/zmb3/spotify"
 )
 
 // Party ...
 type Party struct {
 	guildID, channelID string
 	users              map[string]*User
+	queue              []*User
 }
 
 // PartyManager ...
@@ -55,7 +57,7 @@ func (manager *PartyManager) Join(guildID, channelID string, userDiscord *discor
 	return party
 }
 
-func (manager *PartyManager) GetUser(guildID, channelID, userID string) (*User, error) {
+func (manager *PartyManager) GetUser(guildID, userID string) (*User, error) {
 	party := manager.GetByGuild(guildID)
 
 	if party == nil {
@@ -88,4 +90,28 @@ func (manager *PartyManager) UpdateUser(party *Party, oldUser, newUser *User) (*
 	party.users[oldUser.discord.ID] = newUser
 
 	return party.users[oldUser.discord.ID], nil
+}
+
+func (party *Party) Play() {
+	for _, user := range party.users {
+		go func(user *User) {
+			user.spotify.Play()
+		}(user)
+	}
+}
+
+func (party *Party) Pause() {
+	for _, user := range party.users {
+		go func(user *User) {
+			user.spotify.Pause()
+		}(user)
+	}
+}
+
+func (party *Party) Add(track spotify.FullTrack) {
+	for _, user := range party.users {
+		go func(user *User) {
+			user.spotify.QueueSong(track.ID)
+		}(user)
+	}
 }

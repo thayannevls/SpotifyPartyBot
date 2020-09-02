@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
@@ -16,11 +17,30 @@ var (
 	Parties *PartyManager
 	wg      = new(sync.WaitGroup)
 	// Auth ...
-	Auth spotify.Authenticator
+	Auth       spotify.Authenticator
+	CmdHandler *CommandHandler
+	PREFIX     string
 )
 
 func messageCreate(session *discordgo.Session, message *discordgo.MessageCreate) {
-	if message.Author.ID == session.State.User.ID {
+	user := message.Author
+	if user.ID == session.State.User.ID {
+		return
+	}
+	content := message.Content
+	if len(content) <= len(PREFIX) || content[:len(PREFIX)] != PREFIX {
+		return
+	}
+
+	content = content[len(PREFIX):]
+	if len(content) < 1 {
+		return
+	}
+
+	args := strings.Fields(content)
+	name := strings.ToLower(args[0])
+	command, err := CmdHandler.Get(name)
+	if err != nil {
 		return
 	}
 
@@ -38,24 +58,20 @@ func messageCreate(session *discordgo.Session, message *discordgo.MessageCreate)
 		return
 	}
 
-	ctx := NewContext(session, guild, channel, message.Author, message, Parties, Auth)
-
-	if message.Content == "!join" {
-		JoinCommand(ctx)
-	}
-
-	if message.Content == "!list" {
-		ListCommand(ctx)
-	}
+	ctx := NewContext(session, guild, channel, user, message, Parties, Auth, args[1:])
+	c := *command
+	c(ctx)
 }
 
 func main() {
 	err := godotenv.Load()
+	PREFIX = os.Getenv("PREFIX")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 	wg.Add(2)
 	Parties = NewPartyManager()
+	CmdHandler = NewCommandHandler()
 	Auth = GetSpotifyAuth()
 	go InitDiscord()
 	go InitAuthServer()

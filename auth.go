@@ -26,8 +26,8 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s := strings.Split(state, "-")
-	guildID, channelID, userID := s[0], s[1], s[2]
-	user, err := Parties.GetUser(guildID, channelID, userID)
+	guildID, userID := s[0], s[2]
+	user, err := Parties.GetUser(guildID, userID)
 	if err != nil {
 		http.Error(w, "Error trying to retrieve user", http.StatusNotFound)
 		fmt.Println("Error trying to retrieve user: ", err)

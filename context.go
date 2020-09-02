@@ -16,11 +16,12 @@ type Context struct {
 	Message *discordgo.MessageCreate
 	Parties *PartyManager
 	Auth    spotify.Authenticator
+	Args    []string
 }
 
 // NewContext ..
 func NewContext(session *discordgo.Session, guild *discordgo.Guild, channel *discordgo.Channel,
-	user *discordgo.User, message *discordgo.MessageCreate, parties *PartyManager, auth spotify.Authenticator) *Context {
+	user *discordgo.User, message *discordgo.MessageCreate, parties *PartyManager, auth spotify.Authenticator, args []string) *Context {
 
 	ctx := new(Context)
 	ctx.Session = session
@@ -30,6 +31,7 @@ func NewContext(session *discordgo.Session, guild *discordgo.Guild, channel *dis
 	ctx.Message = message
 	ctx.Parties = parties
 	ctx.Auth = auth
+	ctx.Args = args
 
 	return ctx
 }
