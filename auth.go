@@ -6,22 +6,40 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/gorilla/mux"
 )
 
 func authHandler(w http.ResponseWriter, r *http.Request) {
-	token, err := auth.Token(state, r)
+	params, ok := r.URL.Query()["state"]
+	if !ok || len(params[0]) < 1 {
+		log.Println("Url Param 'state' is missing")
+		return
+	}
+	state := params[0]
+
+	token, err := Auth.Token(state, r)
 	if err != nil {
 		http.Error(w, "Couldn't get token", http.StatusNotFound)
 		return
 	}
-
-	client = auth.NewClient(token)
+	s := strings.Split(state, "-")
+	guildID, channelID, userID := s[0], s[1], s[2]
+	user, err := Parties.GetUser(guildID, channelID, userID)
+	if err != nil {
+		http.Error(w, "Error trying to retrieve user", http.StatusNotFound)
+		fmt.Println("Error trying to retrieve user: ", err)
+		return
+	}
+	userSpotify := Auth.NewClient(token)
+	updatedUserWithSpotify := NewUser(user.discord, &userSpotify)
+	party := Parties.GetByGuild(guildID)
+	Parties.UpdateUser(party, user, updatedUserWithSpotify)
 
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Authenticated. Ready to party!")
+	fmt.Fprintf(w, "Successfully authenticated. Ready to party!")
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
