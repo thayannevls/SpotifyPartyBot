@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/zmb3/spotify"
@@ -14,6 +14,10 @@ type (
 	CommandHandler struct {
 		cmds Commands
 	}
+)
+
+var (
+	spotifyRegex = regexp.MustCompile(`^(?:https:\/\/open.spotify.com\/track\/|spotify:track:)([a-zA-Z0-9]+)(?:.*)$`)
 )
 
 func NewCommandHandler() *CommandHandler {
@@ -101,11 +105,24 @@ func AddCommand(ctx *Context) {
 	user, err := ctx.Parties.GetUser(ctx.Guild.ID, ctx.User.ID)
 
 	if err != nil {
-		fmt.Println(err)
 		ctx.Reply("join the party to add music")
 		return
 	}
+
 	term := strings.Join(ctx.Args, " ")
+	if spotifyRegex.MatchString(term) {
+		trackID := spotifyRegex.FindStringSubmatch(term)[1]
+		track, err := user.spotify.GetTrack(spotify.ID(trackID))
+
+		if err != nil {
+			ctx.Reply("track not found...: ")
+			return
+		}
+		party.Add(*track)
+		ctx.Reply("Added " + track.ExternalURLs["spotify"])
+		return
+	}
+
 	results, err := user.spotify.Search(term, spotify.SearchTypeTrack)
 	if err != nil || results.Tracks == nil || results.Tracks.Tracks == nil || len(results.Tracks.Tracks) == 0 {
 		ctx.Reply("track not found")
@@ -113,8 +130,6 @@ func AddCommand(ctx *Context) {
 	}
 
 	track := results.Tracks.Tracks[0]
-
 	party.Add(track)
 	ctx.Reply("Added " + track.ExternalURLs["spotify"])
-
 }
