@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/zmb3/spotify"
@@ -11,7 +13,9 @@ import (
 type Party struct {
 	guildID, channelID string
 	users              map[string]*User
+	current            int
 	queue              []*User
+	player             *Player
 }
 
 // PartyManager ...
@@ -30,6 +34,9 @@ func NewParty(guildID string, channelID string) *Party {
 	party.guildID = guildID
 	party.channelID = channelID
 	party.users = make(map[string]*User)
+	party.queue = []*User{}
+	party.current = 0
+	party.player = NewPlayer()
 	return party
 }
 
@@ -43,7 +50,7 @@ func (manager *PartyManager) GetByGuild(guildID string) *Party {
 	return nil
 }
 
-// Join a party in the guild
+// Join join or create a party in the guild
 func (manager *PartyManager) Join(guildID, channelID string, userDiscord *discordgo.User) *Party {
 	user := NewUser(userDiscord, nil)
 	party := manager.GetByGuild(guildID)
@@ -53,7 +60,6 @@ func (manager *PartyManager) Join(guildID, channelID string, userDiscord *discor
 	}
 
 	party.users[userDiscord.ID] = user
-
 	return party
 }
 
@@ -88,12 +94,41 @@ func (manager *PartyManager) UpdateUser(party *Party, oldUser, newUser *User) (*
 	}
 
 	party.users[oldUser.discord.ID] = newUser
+	party.queue = append(party.queue, newUser)
 
 	return party.users[oldUser.discord.ID], nil
 }
 
+func (party *Party) Start() {
+	u := party.queue[party.current]
+
+	track := u.PopFromPlaylist()
+
+	if track == nil {
+		party.current = (party.current + 1) % len(party.queue)
+		party.Start()
+	}
+
+	for _, user := range party.users {
+		if user == nil || user.spotify == nil {
+			continue
+		}
+		go func(user *User) {
+			user.spotify.PlayOpt(&spotify.PlayOptions{URIs: []spotify.URI{track.URI}})
+		}(user)
+	}
+
+	go party.player.Play(track, func() {
+		party.current = (party.current + 1) % len(party.queue)
+		party.Start()
+	})
+}
+
 func (party *Party) Play() {
 	for _, user := range party.users {
+		if user == nil || user.spotify == nil {
+			continue
+		}
 		go func(user *User) {
 			user.spotify.Play()
 		}(user)
@@ -102,16 +137,38 @@ func (party *Party) Play() {
 
 func (party *Party) Pause() {
 	for _, user := range party.users {
+		if user == nil || user.spotify == nil {
+			continue
+		}
 		go func(user *User) {
 			user.spotify.Pause()
 		}(user)
 	}
 }
 
-func (party *Party) Add(track spotify.FullTrack) {
-	for _, user := range party.users {
-		go func(user *User) {
-			user.spotify.QueueSong(track.ID)
-		}(user)
+func (party *Party) Add(user *User, track spotify.FullTrack) {
+	user.spotify.AddTracksToPlaylist(user.playlist.ID, track.ID)
+
+	if party.player.running {
+		return
 	}
+
+	party.Start()
+}
+
+func (party *Party) Sync(user *User) {
+	currentTrack := party.player.currentTrack
+	duration := party.player.duration
+	started := party.player.started
+	positionMs := diffDate(started, duration)
+	fmt.Println(positionMs / 1000)
+	user.spotify.PlayOpt(&spotify.PlayOptions{URIs: []spotify.URI{currentTrack.URI}, PositionMs: positionMs})
+}
+
+func diffDate(start time.Time, duration time.Duration) int {
+	now := time.Now()
+
+	sub := now.Sub(start)
+
+	return int(sub / time.Millisecond)
 }

@@ -35,6 +35,7 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	userSpotify := Auth.NewClient(token)
 	updatedUserWithSpotify := NewUser(user.discord, &userSpotify)
+	updatedUserWithSpotify.CreatePlaylist()
 	party := Parties.GetByGuild(guildID)
 	Parties.UpdateUser(party, user, updatedUserWithSpotify)
 
