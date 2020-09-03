@@ -43,7 +43,7 @@ func NewCommandHandler() *CommandHandler {
 			},
 			"sync": CommandWithHelp{
 				command: SyncCommand,
-				help:    "Sync music and time on Spotify.",
+				help:    "Sync music and time with the party on Spotify.",
 			},
 			"leave": CommandWithHelp{
 				command: LeaveCommand,
