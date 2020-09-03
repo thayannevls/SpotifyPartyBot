@@ -36,10 +36,17 @@ func NewContext(session *discordgo.Session, guild *discordgo.Guild, channel *dis
 	return ctx
 }
 
-// Reply ..
 func (ctx Context) Reply(content string) error {
 	_, err := ctx.Session.ChannelMessageSend(ctx.Channel.ID, content)
+	if err != nil {
+		fmt.Println("Error sending message: ", err)
+	}
+	return err
+}
 
+func (ctx Context) ReplyWithEmbed(embeded discordgo.MessageEmbed) error {
+
+	_, err := ctx.Session.ChannelMessageSendEmbed(ctx.Channel.ID, &embeded)
 	if err != nil {
 		fmt.Println("Error sending message: ", err)
 	}

@@ -2,9 +2,11 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/zmb3/spotify"
 )
 
@@ -50,63 +52,69 @@ func JoinCommand(ctx *Context) {
 	state := ctx.Guild.ID + "-" + ctx.Channel.ID + "-" + ctx.User.ID
 	url := ctx.Auth.AuthURL(state)
 	dm, _ := ctx.Session.UserChannelCreate(ctx.User.ID)
-	ctx.Session.ChannelMessageSend(dm.ID, url)
+
+	embed := &discordgo.MessageEmbed{
+		Title: "Click here to connect on Spotify",
+		URL:   url,
+		Color: 8534465,
+		Thumbnail: &discordgo.MessageEmbedThumbnail{
+			URL: "https://i.imgur.com/wrRGQ70.png",
+		},
+		Description: "You need to login on Spotify to start partying with your friends! :headphones:",
+	}
+	ctx.Session.ChannelMessageSendEmbed(dm.ID, embed)
+	message := fmt.Sprintf("<@%s> joined the party! :partying_face: ", ctx.User.ID)
+	ctx.Reply(message)
 }
 
 func ListCommand(ctx *Context) {
 	party := ctx.Parties.GetByGuild(ctx.Guild.ID)
-	reply := ctx.Guild.Name + " party's list"
 	if party == nil {
-		ctx.Reply("no party is happening, type sp.join to start one")
+		askToJoinParty(ctx)
 		return
 	}
-
+	fields := []*discordgo.MessageEmbedField{}
 	for _, u := range party.users {
 		if u.spotify == nil {
-			reply += "\n - " + u.discord.Username + " - Not authenticated, please join the party."
+			fields = append(fields, &discordgo.MessageEmbedField{
+				Name:  ":warning: @" + u.discord.Username,
+				Value: "**Not authenticated on Spotify**, please access the link sent on your DM",
+			})
 			continue
 		}
 		s, err := u.spotify.CurrentUser()
 		if err != nil {
-			reply += "\n - " + u.discord.Username + " - Not authenticated, please join the party."
+			fields = append(fields, &discordgo.MessageEmbedField{
+				Name:  ":warning: @" + u.discord.Username,
+				Value: "**Not authenticated on Spotify**, please access the link sent on your DM",
+			})
 		} else {
-			reply += "\n - " + u.discord.Username + " / " + s.DisplayName
+			fields = append(fields, &discordgo.MessageEmbedField{
+				Name:  ":large_orange_diamond: @" + u.discord.Username,
+				Value: "Spotify Account: @" + s.DisplayName + " ",
+			})
 		}
 	}
-	ctx.Reply(reply)
-}
 
-func PlayCommand(ctx *Context) {
-	party := ctx.Parties.GetByGuild(ctx.Guild.ID)
-	if party == nil {
-		ctx.Reply("no party is happening, type sp.join to start one")
-		return
+	embed := discordgo.MessageEmbed{
+		Title:       ":dancer: Party Guests :dancer:",
+		Color:       8534465,
+		Description: "Who is partying?",
+		Fields:      fields,
 	}
-	party.Play()
-	ctx.Reply("Playing!")
-}
-
-func PauseCommand(ctx *Context) {
-	party := ctx.Parties.GetByGuild(ctx.Guild.ID)
-	if party == nil {
-		ctx.Reply("no party is happening, type sp.join to start one")
-		return
-	}
-
-	party.Pause()
-	ctx.Reply("Paused!")
+	ctx.ReplyWithEmbed(embed)
 }
 
 func AddCommand(ctx *Context) {
 	party := ctx.Parties.GetByGuild(ctx.Guild.ID)
 	if party == nil {
-		ctx.Reply("no party is happening, type sp.join to start one")
+		askToJoinParty(ctx)
 		return
 	}
 	user, err := ctx.Parties.GetUser(ctx.Guild.ID, ctx.User.ID)
 
-	if err != nil {
-		ctx.Reply("join the party to add music")
+	if err != nil || user == nil || user.spotify == nil {
+		askToJoinParty(ctx)
 		return
 	}
 
@@ -116,7 +124,7 @@ func AddCommand(ctx *Context) {
 		track, err := user.spotify.GetTrack(spotify.ID(trackID))
 
 		if err != nil {
-			ctx.Reply("track not found...: ")
+			ctx.Reply("Track not found :cold_sweat: ")
 			return
 		}
 		party.Add(user, *track)
@@ -138,33 +146,58 @@ func AddCommand(ctx *Context) {
 func SyncCommand(ctx *Context) {
 	party := ctx.Parties.GetByGuild(ctx.Guild.ID)
 	if party == nil {
-		ctx.Reply("no party is happening, type sp.join to start one")
+		askToJoinParty(ctx)
 		return
 	}
 	user, err := ctx.Parties.GetUser(ctx.Guild.ID, ctx.User.ID)
-	if err != nil {
-		ctx.Reply("join the party first please")
+	if err != nil || user == nil || user.spotify == nil {
+		askToJoinParty(ctx)
 		return
 	}
 	party.Sync(user)
-	ctx.Reply("Sync!")
+	ctx.Reply(":play_pause: synced")
 }
 
 func LeaveCommand(ctx *Context) {
 	party := ctx.Parties.GetByGuild(ctx.Guild.ID)
 	if party == nil {
-		ctx.Reply("no party is happening, type sp.join to start one")
+		askToJoinParty(ctx)
 		return
 	}
 	user, err := ctx.Parties.GetUser(ctx.Guild.ID, ctx.User.ID)
-	if err != nil {
-		ctx.Reply("You are not in the party")
+	if err != nil || user == nil || user.spotify == nil {
+		askToJoinParty(ctx)
 		return
 	}
 	party.Leave(user)
-	ctx.Reply("Goodbye!")
+	ctx.Reply(fmt.Sprintf("Goodbye <@%s> :wave:", ctx.User.ID))
 }
 
 func KillCommand(ctx *Context) {
 	ctx.Parties.Kill(ctx.Guild.ID, ctx.Channel.ID)
+	ctx.Reply("The party is over :wave: ")
+}
+
+func askToJoinParty(ctx *Context) {
+	embed := discordgo.MessageEmbed{
+		Title:       "Join the party first!",
+		Description: fmt.Sprintf("Hey stranger :detective: <@%s>, you need to fully join a party to perform this action.", ctx.User.ID),
+		Color:       8534465,
+		Fields: []*discordgo.MessageEmbedField{
+			&discordgo.MessageEmbedField{
+				Name:  "1. Join the party",
+				Value: "Type sp.join to join a current party or create a new one",
+			},
+			&discordgo.MessageEmbedField{
+				Name:  "2. Login on Spotify",
+				Value: "A link will be sent on your DM to login on Spotify.",
+			},
+			&discordgo.MessageEmbedField{
+				Name:  "3. Have fun! :man_dancing: ",
+				Value: "Have fun listening songs with your friends.",
+			},
+		},
+	}
+
+	ctx.ReplyWithEmbed(embed)
 }
