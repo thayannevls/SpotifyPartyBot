@@ -57,6 +57,16 @@ func (manager *PartyManager) Join(guildID, channelID string, userDiscord *discor
 	return party
 }
 
+func (manager *PartyManager) Kill(guildID, channelID string) {
+	party := manager.GetByGuild(guildID)
+	if party == nil {
+		return
+	}
+	party.Pause()
+	party = nil
+	delete(manager.parties, channelID)
+}
+
 func (manager *PartyManager) GetUser(guildID, userID string) (*User, error) {
 	party := manager.GetByGuild(guildID)
 
@@ -93,11 +103,11 @@ func (manager *PartyManager) UpdateUser(party *Party, oldUser, newUser *User) (*
 	return party.users[oldUser.discord.ID], nil
 }
 
-func (party *Party) Start() {
-	party.PlayLoop(0)
+func (party *Party) Play() {
+	party.PlayAux(0)
 }
-func (party *Party) PlayLoop(notFound int) {
-	if notFound == len(party.queue) {
+func (party *Party) PlayAux(notFound int) {
+	if len(party.queue) == 0 || notFound == len(party.queue) {
 		party.Pause()
 		return
 	}
@@ -107,7 +117,7 @@ func (party *Party) PlayLoop(notFound int) {
 
 	if err != nil {
 		party.current = (party.current + 1) % len(party.queue)
-		party.PlayLoop(notFound + 1)
+		party.PlayAux(notFound + 1)
 		return
 	}
 
@@ -121,25 +131,18 @@ func (party *Party) PlayLoop(notFound int) {
 	}
 
 	go party.player.Play(track, func() {
+		if len(party.queue) == 0 {
+			party.Pause()
+			return
+		}
 		party.current = (party.current + 1) % len(party.queue)
-		party.PlayLoop(0)
+		party.PlayAux(0)
 	})
 }
 
 func (party *Party) Stop() {
 	party.player.running = false
 	party.Pause()
-}
-
-func (party *Party) Play() {
-	for _, user := range party.users {
-		if user == nil || user.spotify == nil {
-			continue
-		}
-		go func(user *User) {
-			user.spotify.Play()
-		}(user)
-	}
 }
 
 func (party *Party) Pause() {
@@ -159,7 +162,7 @@ func (party *Party) Add(user *User, track spotify.FullTrack) {
 	if party.player.running {
 		return
 	}
-	party.Start()
+	party.Play()
 }
 
 func (party *Party) Sync(user *User) {
@@ -168,6 +171,20 @@ func (party *Party) Sync(user *User) {
 	started := party.player.started
 	positionMs := diffDate(started, duration)
 	user.spotify.PlayOpt(&spotify.PlayOptions{URIs: []spotify.URI{currentTrack.URI}, PositionMs: positionMs})
+}
+
+func (party *Party) Leave(user *User) {
+	index := -1
+	for i, u := range party.queue {
+		if u.discord.ID == user.discord.ID {
+			index = i
+			break
+		}
+	}
+	if index != -1 {
+		party.queue = append(party.queue[:index], party.queue[index+1:]...)
+	}
+	delete(party.users, user.discord.ID)
 }
 
 func diffDate(start time.Time, duration time.Duration) int {

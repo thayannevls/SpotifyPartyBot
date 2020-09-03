@@ -23,10 +23,12 @@ var (
 func NewCommandHandler() *CommandHandler {
 	return &CommandHandler{
 		cmds: Commands{
-			"join": JoinCommand,
-			"list": ListCommand,
-			"add":  AddCommand,
-			"sync": SyncCommand,
+			"join":  JoinCommand,
+			"list":  ListCommand,
+			"add":   AddCommand,
+			"sync":  SyncCommand,
+			"leave": LeaveCommand,
+			"kill":  KillCommand,
 		},
 	}
 }
@@ -146,4 +148,23 @@ func SyncCommand(ctx *Context) {
 	}
 	party.Sync(user)
 	ctx.Reply("Sync!")
+}
+
+func LeaveCommand(ctx *Context) {
+	party := ctx.Parties.GetByGuild(ctx.Guild.ID)
+	if party == nil {
+		ctx.Reply("no party is happening, type sp.join to start one")
+		return
+	}
+	user, err := ctx.Parties.GetUser(ctx.Guild.ID, ctx.User.ID)
+	if err != nil {
+		ctx.Reply("You are not in the party")
+		return
+	}
+	party.Leave(user)
+	ctx.Reply("Goodbye!")
+}
+
+func KillCommand(ctx *Context) {
+	ctx.Parties.Kill(ctx.Guild.ID, ctx.Channel.ID)
 }
