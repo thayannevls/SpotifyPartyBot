@@ -45,7 +45,6 @@ func (ctx Context) Reply(content string) error {
 }
 
 func (ctx Context) ReplyWithEmbed(embeded discordgo.MessageEmbed) error {
-
 	_, err := ctx.Session.ChannelMessageSendEmbed(ctx.Channel.ID, &embeded)
 	if err != nil {
 		fmt.Println("Error sending message: ", err)

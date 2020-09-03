@@ -11,8 +11,12 @@ import (
 )
 
 type (
-	Command        func(*Context)
-	Commands       map[string]Command
+	Command         func(*Context)
+	CommandWithHelp struct {
+		command Command
+		help    string
+	}
+	Commands       map[string]CommandWithHelp
 	CommandHandler struct {
 		cmds Commands
 	}
@@ -25,12 +29,38 @@ var (
 func NewCommandHandler() *CommandHandler {
 	return &CommandHandler{
 		cmds: Commands{
-			"join":  JoinCommand,
-			"list":  ListCommand,
-			"add":   AddCommand,
-			"sync":  SyncCommand,
-			"leave": LeaveCommand,
-			"kill":  KillCommand,
+			"join": CommandWithHelp{
+				command: JoinCommand,
+				help:    "Join a party. If no party exists in the server it will also create.",
+			},
+			"list": CommandWithHelp{
+				command: ListCommand,
+				help:    "List all users participating in the party.",
+			},
+			"add": CommandWithHelp{
+				command: AddCommand,
+				help:    "Add a new music to the users queue. You can check the musics added on Spotify.",
+			},
+			"sync": CommandWithHelp{
+				command: SyncCommand,
+				help:    "Sync music and time on Spotify.",
+			},
+			"leave": CommandWithHelp{
+				command: LeaveCommand,
+				help:    "Leave the party.",
+			},
+			"kill": CommandWithHelp{
+				command: KillCommand,
+				help:    "Kill the party.",
+			},
+			"help": CommandWithHelp{
+				command: HelpCommand,
+				help:    "List of Commands.",
+			},
+			"info": CommandWithHelp{
+				command: InfoCommand,
+				help:    "Spotify Party Bot Info.",
+			},
 		},
 	}
 }
@@ -43,7 +73,7 @@ func (handler CommandHandler) Get(name string) (*Command, error) {
 		return nil, err
 	}
 
-	return &cmd, nil
+	return &cmd.command, nil
 }
 
 func JoinCommand(ctx *Context) {
@@ -176,6 +206,29 @@ func LeaveCommand(ctx *Context) {
 func KillCommand(ctx *Context) {
 	ctx.Parties.Kill(ctx.Guild.ID, ctx.Channel.ID)
 	ctx.Reply("The party is over :wave: ")
+}
+
+func HelpCommand(ctx *Context) {
+	fields := []*discordgo.MessageEmbedField{}
+
+	cmds := CmdHandler.cmds
+
+	for cmdName, cmd := range cmds {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: PREFIX + cmdName, Value: cmd.help})
+	}
+
+	embed := discordgo.MessageEmbed{
+		Title:       "List of Commands",
+		Description: "For more info access link",
+		Color:       8534465,
+		Fields:      fields,
+	}
+
+	ctx.ReplyWithEmbed(embed)
+}
+
+func InfoCommand(ctx *Context) {
+	ctx.Reply("Info")
 }
 
 func askToJoinParty(ctx *Context) {
