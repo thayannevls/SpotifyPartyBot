@@ -13,10 +13,8 @@ import (
 )
 
 var (
-	// Parties ...
-	Parties *PartyManager
-	wg      = new(sync.WaitGroup)
-	// Auth ...
+	Parties    *PartyManager
+	wg         = new(sync.WaitGroup)
 	Auth       spotify.Authenticator
 	CmdHandler *CommandHandler
 	PREFIX     string

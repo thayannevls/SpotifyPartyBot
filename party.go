@@ -2,14 +2,12 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/zmb3/spotify"
 )
 
-// Party ...
 type Party struct {
 	guildID, channelID string
 	users              map[string]*User
@@ -18,17 +16,14 @@ type Party struct {
 	player             *Player
 }
 
-// PartyManager ...
 type PartyManager struct {
 	parties map[string]*Party
 }
 
-// NewPartyManager ...
 func NewPartyManager() *PartyManager {
 	return &PartyManager{make(map[string]*Party)}
 }
 
-// NewParty create a new party
 func NewParty(guildID string, channelID string) *Party {
 	party := new(Party)
 	party.guildID = guildID
@@ -50,7 +45,6 @@ func (manager *PartyManager) GetByGuild(guildID string) *Party {
 	return nil
 }
 
-// Join join or create a party in the guild
 func (manager *PartyManager) Join(guildID, channelID string, userDiscord *discordgo.User) *Party {
 	user := NewUser(userDiscord, nil)
 	party := manager.GetByGuild(guildID)
@@ -100,13 +94,21 @@ func (manager *PartyManager) UpdateUser(party *Party, oldUser, newUser *User) (*
 }
 
 func (party *Party) Start() {
+	party.PlayLoop(0)
+}
+func (party *Party) PlayLoop(notFound int) {
+	if notFound == len(party.queue) {
+		party.Pause()
+		return
+	}
 	u := party.queue[party.current]
 
-	track := u.PopFromPlaylist()
+	track, err := u.PopFromPlaylist()
 
-	if track == nil {
+	if err != nil {
 		party.current = (party.current + 1) % len(party.queue)
-		party.Start()
+		party.PlayLoop(notFound + 1)
+		return
 	}
 
 	for _, user := range party.users {
@@ -120,8 +122,13 @@ func (party *Party) Start() {
 
 	go party.player.Play(track, func() {
 		party.current = (party.current + 1) % len(party.queue)
-		party.Start()
+		party.PlayLoop(0)
 	})
+}
+
+func (party *Party) Stop() {
+	party.player.running = false
+	party.Pause()
 }
 
 func (party *Party) Play() {
@@ -152,7 +159,6 @@ func (party *Party) Add(user *User, track spotify.FullTrack) {
 	if party.player.running {
 		return
 	}
-
 	party.Start()
 }
 
@@ -161,7 +167,6 @@ func (party *Party) Sync(user *User) {
 	duration := party.player.duration
 	started := party.player.started
 	positionMs := diffDate(started, duration)
-	fmt.Println(positionMs / 1000)
 	user.spotify.PlayOpt(&spotify.PlayOptions{URIs: []spotify.URI{currentTrack.URI}, PositionMs: positionMs})
 }
 

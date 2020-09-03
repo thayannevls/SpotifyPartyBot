@@ -48,7 +48,6 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Listening....")
 }
 
-// InitAuthServer ...
 func InitAuthServer() {
 	r := mux.NewRouter()
 	r.HandleFunc("/", homeHandler)
@@ -62,8 +61,6 @@ func InitAuthServer() {
 		signal.Stop(ch)
 		log.Println("Exit command received. Exiting...")
 
-		// this is a good place to flush everything to disk
-		// before terminating.
 		log.Println("Signal type : ", signalType)
 
 		os.Exit(0)

@@ -23,13 +23,10 @@ var (
 func NewCommandHandler() *CommandHandler {
 	return &CommandHandler{
 		cmds: Commands{
-			"join":  JoinCommand,
-			"list":  ListCommand,
-			"play":  PlayCommand,
-			"pause": PauseCommand,
-			"add":   AddCommand,
-			"start": StartCommand,
-			"sync":  SyncCommand,
+			"join": JoinCommand,
+			"list": ListCommand,
+			"add":  AddCommand,
+			"sync": SyncCommand,
 		},
 	}
 }
@@ -134,17 +131,6 @@ func AddCommand(ctx *Context) {
 	track := results.Tracks.Tracks[0]
 	party.Add(user, track)
 	ctx.Reply("Added " + track.ExternalURLs["spotify"])
-}
-
-func StartCommand(ctx *Context) {
-	party := ctx.Parties.GetByGuild(ctx.Guild.ID)
-	if party == nil {
-		ctx.Reply("no party is happening, type sp.join to start one")
-		return
-	}
-
-	party.Start()
-	ctx.Reply("Party started!")
 }
 
 func SyncCommand(ctx *Context) {
