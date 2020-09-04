@@ -166,6 +166,9 @@ func (party *Party) Add(user *User, track spotify.FullTrack) {
 }
 
 func (party *Party) Sync(user *User) {
+	if !party.player.running {
+		return
+	}
 	currentTrack := party.player.currentTrack
 	duration := party.player.duration
 	started := party.player.started

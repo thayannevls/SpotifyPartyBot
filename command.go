@@ -228,7 +228,16 @@ func HelpCommand(ctx *Context) {
 }
 
 func InfoCommand(ctx *Context) {
-	ctx.Reply("Info")
+	embed := discordgo.MessageEmbed{
+		Title:       "Spotify Party Bot",
+		Description: "[Info](https://github.com/thayannevls/SpotifyPartyBot)\n[Invite](https://discord.com/api/oauth2/authorize?client_id=747675945644851221&permissions=19520&scope=bot)\n[Donate](https://ko-fi.com/thayannevls)",
+		Color:       8534465,
+		Thumbnail: &discordgo.MessageEmbedThumbnail{
+			URL: "https://i.imgur.com/wrRGQ70.png",
+		},
+	}
+	ctx.ReplyWithEmbed(embed)
+
 }
 
 func askToJoinParty(ctx *Context) {
