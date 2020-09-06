@@ -92,8 +92,9 @@ func JoinCommand(ctx *Context) {
 		},
 		Description: "You need to login on Spotify to start partying with your friends! :headphones:",
 	}
+
 	ctx.Session.ChannelMessageSendEmbed(dm.ID, embed)
-	message := fmt.Sprintf("<@%s> joined the party! :partying_face: ", ctx.User.ID)
+	message := fmt.Sprintf("Hello <@%s> :partying_face: please check the **message sent on your DM**. ", ctx.User.ID)
 	ctx.Reply(message)
 }
 
