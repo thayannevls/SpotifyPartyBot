@@ -44,8 +44,12 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Listening....")
+	fmt.Fprintf(w, "Listening on "+port)
 }
 
 func InitAuthServer() {
@@ -66,8 +70,11 @@ func InitAuthServer() {
 		os.Exit(0)
 
 	}()
-
-	http.ListenAndServe(":8080", r)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	http.ListenAndServe(":"+port, r)
 
 	wg.Done()
 }
