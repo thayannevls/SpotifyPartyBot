@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"sync"
@@ -65,7 +64,7 @@ func main() {
 	err := godotenv.Load()
 	PREFIX = os.Getenv("PREFIX")
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		fmt.Println("Could not find a .env file")
 	}
 	wg.Add(2)
 	Parties = NewPartyManager()
